@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
+    id: u32,
     channel: Option<u8>,
     pmk: Option<[u8; 16]>,
     wake_window: Option<u16>,
@@ -14,6 +15,7 @@ pub struct Config {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RxData {
+    id: u32,
     src_addr: [u8; 6],
     dst_addr: [u8; 6],
     data: heapless::Vec<u8, 250>,
@@ -22,6 +24,7 @@ pub struct RxData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TxData {
+    id: u32,
     dst_addr: [u8; 6],
     data: heapless::Vec<u8, 250>,
     defer: bool,
@@ -29,17 +32,28 @@ pub struct TxData {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BroadcastData {
+    id: u32,
     data: heapless::Vec<u8, 250>,
     interval: Option<u32>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PeerInfo {
+    id: u32,
     peer_address: [u8; 6],
     lmk: Option<[u8; 16]>,
     channel: Option<u8>,
     encrypt: bool,
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Ack {
+    id: u32,
+    status: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PeerAddress([u8; 6]);
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Msg {
@@ -49,7 +63,25 @@ pub enum Msg {
     Broadcast(BroadcastData),
     AddPeer(PeerInfo),
     ModifyPeer(PeerInfo),
-    RemovePeer([u8; 6]),
+    RemovePeer(PeerAddress),
+    Ack(Ack),
+}
+
+pub const MAX_MSG_LENGTH: usize = 256;
+
+#[derive(Debug)]
+pub enum MsgError {
+    PostcardError,
+    CapacityError,
+}
+
+impl Msg {
+    // Workaround to get heapless::Vec as postcard imports heapless 0.7.17 [vs 0.9.2]
+    fn to_vec(&self) -> Result<heapless::Vec<u8, 256>, MsgError> {
+        let mut buf = [0_u8; MAX_MSG_LENGTH];
+        let s = postcard::to_slice(&self, &mut buf).map_err(|_| MsgError::PostcardError)?;
+        Ok(heapless::Vec::<u8, 256>::from_slice(&s).map_err(|_| MsgError::CapacityError)?)
+    }
 }
 
 #[cfg(test)]
@@ -59,14 +91,24 @@ mod tests {
     #[test]
     fn test_postcard() {
         let config = Config {
+            id: 1234,
             channel: Some(0),
             pmk: None,
             wake_window: None,
             rate: Some(rate::WifiPhyRate::RateMcs6Lgi),
         };
-        let msg = Msg::HubConfig(config);
-        let data = postcard::to_vec::<Msg, 256>(&msg);
-        println!("{:?}", data);
-        assert!(data.is_ok());
+        for msg in &[
+            Msg::HubConfig(config),
+            Msg::RemovePeer(PeerAddress([17_u8; 6])),
+            Msg::Broadcast(BroadcastData {
+                id: 9876,
+                data: heapless::Vec::<u8, 250>::from_slice(b"123456789").unwrap(),
+                interval: Some(30),
+            }),
+        ] {
+            let data = msg.to_vec();
+            println!("{:?}", data);
+            assert!(data.is_ok());
+        }
     }
 }
