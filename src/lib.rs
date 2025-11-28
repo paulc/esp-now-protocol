@@ -4,7 +4,7 @@ mod rate;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Config {
     id: u32,
     channel: Option<u8>,
@@ -13,7 +13,7 @@ pub struct Config {
     rate: Option<rate::WifiPhyRate>, // This is encoded as the u32 value
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct RxData {
     id: u32,
     src_addr: [u8; 6],
@@ -22,7 +22,7 @@ pub struct RxData {
     rssi: u32,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct TxData {
     id: u32,
     dst_addr: [u8; 6],
@@ -30,14 +30,14 @@ pub struct TxData {
     defer: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct BroadcastData {
     id: u32,
     data: heapless::Vec<u8, 250>,
     interval: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct PeerInfo {
     id: u32,
     peer_address: [u8; 6],
@@ -46,16 +46,16 @@ pub struct PeerInfo {
     encrypt: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Ack {
     id: u32,
     status: bool,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct PeerAddress([u8; 6]);
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub enum Msg {
     HubConfig(Config),
     Send(TxData),
@@ -76,8 +76,14 @@ pub enum MsgError {
 }
 
 impl Msg {
+    fn from_slice(buf: &[u8]) -> Result<Self, MsgError> {
+        postcard::from_bytes::<Self>(buf).map_err(|_| MsgError::PostcardError)
+    }
+    fn to_slice<'a>(&self, buf: &'a mut [u8]) -> Result<&'a mut [u8], MsgError> {
+        postcard::to_slice(&self, buf).map_err(|_| MsgError::PostcardError)
+    }
     // Workaround to get heapless::Vec as postcard imports heapless 0.7.17 [vs 0.9.2]
-    fn to_vec(&self) -> Result<heapless::Vec<u8, 256>, MsgError> {
+    fn to_vec(&self) -> Result<heapless::Vec<u8, MAX_MSG_LENGTH>, MsgError> {
         let mut buf = [0_u8; MAX_MSG_LENGTH];
         let s = postcard::to_slice(&self, &mut buf).map_err(|_| MsgError::PostcardError)?;
         Ok(heapless::Vec::<u8, 256>::from_slice(&s).map_err(|_| MsgError::CapacityError)?)
@@ -106,9 +112,15 @@ mod tests {
                 interval: Some(30),
             }),
         ] {
-            let data = msg.to_vec();
-            println!("{:?}", data);
-            assert!(data.is_ok());
+            let mut buf: [u8; 256] = [0; 256];
+            let slice = msg.to_slice(&mut buf).unwrap();
+            let vec = msg.to_vec().unwrap();
+            println!("{:?}", slice);
+            assert_eq!(&slice, &vec);
+            assert_eq!(
+                Msg::from_slice(slice).unwrap(),
+                Msg::from_slice(&vec).unwrap()
+            );
         }
     }
 }
