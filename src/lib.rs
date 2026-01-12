@@ -1,31 +1,17 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 
+mod format_mac;
 mod rate;
 mod view;
 
+use format_mac::format_mac;
 use view::display_vec;
 
-use core::fmt::{Display, Write};
+use core::fmt::Display;
 use serde::{Deserialize, Serialize};
 
 pub const VERSION: u32 = 0;
 pub const MAX_DATA_LEN: usize = 250;
-
-pub fn format_mac(mac: &[u8; 6]) -> heapless::String<17> {
-    let mut s = heapless::String::<17>::new(); // "xx:xx:xx:xx:xx:xx"
-    if *mac == [0xff, 0xff, 0xff, 0xff, 0xff, 0xff] {
-        write!(&mut s, "<BROADCAST>").unwrap();
-    } else {
-        for (i, &byte) in mac.iter().enumerate() {
-            if i > 0 {
-                write!(&mut s, ":{:02x}", byte).unwrap();
-            } else {
-                write!(&mut s, "{:02x}", byte).unwrap();
-            }
-        }
-    }
-    s
-}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
 pub struct HubConfig {
