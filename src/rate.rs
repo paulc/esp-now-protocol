@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
 #[repr(u32)]
 pub enum WifiPhyRate {
     Rate1mL = 0,
