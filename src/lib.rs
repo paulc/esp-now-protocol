@@ -1,6 +1,6 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 
-mod format_mac;
+pub mod format_mac;
 mod rate;
 mod view;
 
@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 pub const VERSION: u32 = 0;
 pub const MAX_DATA_LEN: usize = 250;
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+// Server -> Hub :: Config
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct HubConfig {
     pub id: u32,
     pub channel: Option<u8>,
@@ -32,7 +34,23 @@ impl Display for HubConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+impl defmt::Format for HubConfig {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] HubConfig: channel={:?} pmk={:?} wake_window={:?} rate={:?}",
+            self.id,
+            self.channel,
+            self.pmk,
+            self.wake_window,
+            self.rate
+        )
+    }
+}
+
+// Hub -> Server :: RX esp-now msg
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct RxData {
     pub id: u32,
     pub src_addr: [u8; 6],
@@ -55,7 +73,23 @@ impl Display for RxData {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+impl defmt::Format for RxData {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] RxData: src={} dst={} rssi={} data=\"{}\"",
+            self.id,
+            format_mac(&self.src_addr),
+            format_mac(&self.dst_addr),
+            self.rssi,
+            display_vec::<64, MAX_DATA_LEN>(&self.data)
+        )
+    }
+}
+
+// Server -> Hub :: TX esp-now msg
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct TxData {
     pub id: u32,
     pub dst_addr: [u8; 6],
@@ -76,7 +110,22 @@ impl Display for TxData {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+impl defmt::Format for TxData {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] TxData: dst={} defer={} data=\"{}\"",
+            self.id,
+            format_mac(&self.dst_addr),
+            self.defer,
+            display_vec::<64, MAX_DATA_LEN>(&self.data)
+        )
+    }
+}
+
+// Server -> Hub :: Broadcast esp-now msg
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct BroadcastData {
     pub id: u32,
     pub data: heapless::Vec<u8, MAX_DATA_LEN>,
@@ -95,7 +144,19 @@ impl Display for BroadcastData {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+impl defmt::Format for BroadcastData {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] BroadcastData: interval={:?} data=\"{}\"",
+            self.id,
+            self.interval,
+            display_vec::<64, MAX_DATA_LEN>(&self.data)
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct PeerInfo {
     pub id: u32,
     pub peer_address: [u8; 6],
@@ -118,23 +179,54 @@ impl Display for PeerInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
-pub struct Status {
-    pub id: u32,
-    pub status: bool,
-}
-
-impl Display for Status {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(
-            f,
-            "[{}] Status: id={} status={}",
-            self.id, self.id, self.status,
+impl defmt::Format for PeerInfo {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] PeerInfo: address={} lmk={:?} channel={:?} encrypt={}",
+            self.id,
+            format_mac(&self.peer_address),
+            self.lmk,
+            self.channel,
+            self.encrypt,
         )
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+// Bidirectional :: Msg respoonse
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct Ack {
+    pub id: u32,
+    pub rx_id: u32,
+    pub status: bool,
+}
+
+impl Display for Ack {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "[{}] Ack: rx_id={} status={}",
+            self.id, self.rx_id, self.status,
+        )
+    }
+}
+
+impl defmt::Format for Ack {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] Ack: rx_id={} status={}",
+            self.id,
+            self.rx_id,
+            self.status,
+        )
+    }
+}
+
+// Hub -> Server :: Init
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct InitConfig {
     pub id: u32,
     pub api_version: u32,
@@ -157,16 +249,49 @@ impl Display for InitConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
-pub struct PeerAddress([u8; 6]);
-
-impl Display for PeerAddress {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{}", format_mac(&self.0),)
+impl defmt::Format for InitConfig {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] INIT: address={} channel={} api_version={} now_version={}",
+            self.id,
+            format_mac(&self.address),
+            self.channel,
+            self.api_version,
+            self.now_version
+        )
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug, defmt::Format)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub struct RemovePeer {
+    pub id: u32,
+    pub address: [u8; 6],
+}
+
+impl Display for RemovePeer {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "[{}] REMOVE_PEER: address={}",
+            self.id,
+            format_mac(&self.address)
+        )
+    }
+}
+
+impl defmt::Format for RemovePeer {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "[{}] REMOVE_PEER: address={}",
+            self.id,
+            format_mac(&self.address)
+        )
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub enum Msg {
     Init(InitConfig),
     HubConfig(HubConfig),
@@ -175,8 +300,24 @@ pub enum Msg {
     Broadcast(BroadcastData),
     AddPeer(PeerInfo),
     ModifyPeer(PeerInfo),
-    RemovePeer(PeerAddress),
-    Response(Status),
+    RemovePeer(RemovePeer),
+    Ack(Ack),
+}
+
+impl Msg {
+    pub fn get_id(&self) -> u32 {
+        match self {
+            Msg::Init(m) => m.id,
+            Msg::HubConfig(m) => m.id,
+            Msg::Send(m) => m.id,
+            Msg::Recv(m) => m.id,
+            Msg::Broadcast(m) => m.id,
+            Msg::AddPeer(m) => m.id,
+            Msg::ModifyPeer(m) => m.id,
+            Msg::RemovePeer(m) => m.id,
+            Msg::Ack(m) => m.id,
+        }
+    }
 }
 
 impl Display for Msg {
@@ -190,7 +331,23 @@ impl Display for Msg {
             Msg::AddPeer(m) => write!(f, "Msg -> {}", m),
             Msg::ModifyPeer(m) => write!(f, "Msg -> {}", m),
             Msg::RemovePeer(m) => write!(f, "Msg -> {}", m),
-            Msg::Response(m) => write!(f, "Msg -> {}", m),
+            Msg::Ack(m) => write!(f, "Msg -> {}", m),
+        }
+    }
+}
+
+impl defmt::Format for Msg {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            Msg::Init(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::HubConfig(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::Send(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::Recv(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::Broadcast(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::AddPeer(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::ModifyPeer(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::RemovePeer(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::Ack(m) => defmt::write!(fmt, "Msg -> {}", m),
         }
     }
 }
