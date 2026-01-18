@@ -15,7 +15,7 @@ pub const MAX_DATA_LEN: usize = 250;
 
 // Server -> Hub :: Config
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct HubConfig {
     pub id: u32,
     pub channel: Option<u8>,
@@ -50,7 +50,7 @@ impl defmt::Format for HubConfig {
 
 // Hub -> Server :: RX esp-now msg
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct RxData {
     pub id: u32,
     pub src_addr: [u8; 6],
@@ -89,7 +89,7 @@ impl defmt::Format for RxData {
 
 // Server -> Hub :: TX esp-now msg
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct TxData {
     pub id: u32,
     pub dst_addr: [u8; 6],
@@ -125,7 +125,7 @@ impl defmt::Format for TxData {
 
 // Server -> Hub :: Broadcast esp-now msg
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct BroadcastData {
     pub id: u32,
     pub data: heapless::Vec<u8, MAX_DATA_LEN>,
@@ -156,7 +156,7 @@ impl defmt::Format for BroadcastData {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct PeerInfo {
     pub id: u32,
     pub peer_address: [u8; 6],
@@ -195,7 +195,7 @@ impl defmt::Format for PeerInfo {
 
 // Bidirectional :: Msg respoonse
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct Ack {
     pub id: u32,
     pub rx_id: u32,
@@ -226,7 +226,7 @@ impl defmt::Format for Ack {
 
 // Hub -> Server :: Init
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct InitConfig {
     pub id: u32,
     pub api_version: u32,
@@ -263,7 +263,7 @@ impl defmt::Format for InitConfig {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub struct RemovePeer {
     pub id: u32,
     pub address: [u8; 6],
@@ -291,7 +291,7 @@ impl defmt::Format for RemovePeer {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
 pub enum Msg {
     Init(InitConfig),
     HubConfig(HubConfig),
