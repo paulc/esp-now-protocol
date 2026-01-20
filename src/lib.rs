@@ -323,15 +323,15 @@ impl Msg {
 impl Display for Msg {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Msg::Init(m) => write!(f, "Msg -> {}", m),
-            Msg::HubConfig(m) => write!(f, "Msg -> {}", m),
-            Msg::Send(m) => write!(f, "Msg -> {}", m),
-            Msg::Recv(m) => write!(f, "Msg -> {}", m),
-            Msg::Broadcast(m) => write!(f, "Msg -> {}", m),
-            Msg::AddPeer(m) => write!(f, "Msg -> {}", m),
-            Msg::ModifyPeer(m) => write!(f, "Msg -> {}", m),
-            Msg::RemovePeer(m) => write!(f, "Msg -> {}", m),
-            Msg::Ack(m) => write!(f, "Msg -> {}", m),
+            Msg::Init(m) => write!(f, "{}", m),
+            Msg::HubConfig(m) => write!(f, "{}", m),
+            Msg::Send(m) => write!(f, "{}", m),
+            Msg::Recv(m) => write!(f, "{}", m),
+            Msg::Broadcast(m) => write!(f, "{}", m),
+            Msg::AddPeer(m) => write!(f, "{}", m),
+            Msg::ModifyPeer(m) => write!(f, "{}", m),
+            Msg::RemovePeer(m) => write!(f, "{}", m),
+            Msg::Ack(m) => write!(f, "{}", m),
         }
     }
 }
@@ -339,15 +339,15 @@ impl Display for Msg {
 impl defmt::Format for Msg {
     fn format(&self, fmt: defmt::Formatter) {
         match self {
-            Msg::Init(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::HubConfig(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::Send(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::Recv(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::Broadcast(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::AddPeer(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::ModifyPeer(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::RemovePeer(m) => defmt::write!(fmt, "Msg -> {}", m),
-            Msg::Ack(m) => defmt::write!(fmt, "Msg -> {}", m),
+            Msg::Init(m) => defmt::write!(fmt, "{}", m),
+            Msg::HubConfig(m) => defmt::write!(fmt, "{}", m),
+            Msg::Send(m) => defmt::write!(fmt, "{}", m),
+            Msg::Recv(m) => defmt::write!(fmt, "{}", m),
+            Msg::Broadcast(m) => defmt::write!(fmt, "{}", m),
+            Msg::AddPeer(m) => defmt::write!(fmt, "{}", m),
+            Msg::ModifyPeer(m) => defmt::write!(fmt, "{}", m),
+            Msg::RemovePeer(m) => defmt::write!(fmt, "{}", m),
+            Msg::Ack(m) => defmt::write!(fmt, "{}", m),
         }
     }
 }
@@ -356,6 +356,51 @@ impl defmt::Format for Msg {
 pub enum MsgError {
     PostcardError,
     CapacityError,
+}
+
+#[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+pub enum Monitor {
+    Tx(Msg),
+    Rx(Msg),
+    RxError,
+    TxError,
+}
+
+impl Monitor {
+    pub fn new_tx(msg: &Msg) -> Self {
+        Self::Tx(msg.clone())
+    }
+    pub fn new_rx(msg: &Msg) -> Self {
+        Self::Rx(msg.clone())
+    }
+    pub fn new_rxerror() -> Self {
+        Self::RxError
+    }
+    pub fn new_txerror() -> Self {
+        Self::TxError
+    }
+}
+
+impl Display for Monitor {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Monitor::Tx(m) => write!(f, "<TX> {}", m),
+            Monitor::Rx(m) => write!(f, "<RX> {}", m),
+            Monitor::TxError => write!(f, "TX ERROR"),
+            Monitor::RxError => write!(f, "RX ERROR"),
+        }
+    }
+}
+
+impl defmt::Format for Monitor {
+    fn format(&self, fmt: defmt::Formatter) {
+        match self {
+            Monitor::Tx(m) => defmt::write!(fmt, "<TX> {}", m),
+            Monitor::Rx(m) => defmt::write!(fmt, "<RX> {}", m),
+            Monitor::TxError => defmt::write!(fmt, "TX ERROR"),
+            Monitor::RxError => defmt::write!(fmt, "RX ERROR"),
+        }
+    }
 }
 
 impl Msg {
