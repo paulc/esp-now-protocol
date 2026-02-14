@@ -1,5 +1,8 @@
 #![cfg_attr(not(any(test, feature = "std")), no_std)]
 
+#[cfg(feature = "js")]
+use rquickjs::{class::Trace, ArrayBuffer, Ctx, Exception, JsLifetime, Value};
+
 pub mod format_mac;
 mod rate;
 mod view;
@@ -16,11 +19,14 @@ pub const MAX_DATA_LEN: usize = 250;
 // Server -> Hub :: Config
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct HubConfig {
     pub id: u32,
     pub channel: Option<u8>,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub pmk: Option<[u8; 16]>,
     pub wake_window: Option<u16>,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub rate: Option<rate::WifiPhyRate>, // This is encoded as the u32 value
 }
 
@@ -51,10 +57,14 @@ impl defmt::Format for HubConfig {
 // Hub -> Server :: RX esp-now msg
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct RxData {
     pub id: u32,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub src_addr: [u8; 6],
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub dst_addr: [u8; 6],
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub data: heapless::Vec<u8, MAX_DATA_LEN>,
     pub rssi: i32,
 }
@@ -90,9 +100,12 @@ impl defmt::Format for RxData {
 // Server -> Hub :: TX esp-now msg
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct TxData {
     pub id: u32,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub dst_addr: [u8; 6],
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub data: heapless::Vec<u8, MAX_DATA_LEN>,
     pub defer: bool,
 }
@@ -126,8 +139,10 @@ impl defmt::Format for TxData {
 // Server -> Hub :: Broadcast esp-now msg
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct BroadcastData {
     pub id: u32,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub data: heapless::Vec<u8, MAX_DATA_LEN>,
     pub interval: Option<u32>,
 }
@@ -157,9 +172,12 @@ impl defmt::Format for BroadcastData {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct PeerInfo {
     pub id: u32,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub peer_address: [u8; 6],
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub lmk: Option<[u8; 16]>,
     pub channel: Option<u8>,
     pub encrypt: bool,
@@ -196,6 +214,7 @@ impl defmt::Format for PeerInfo {
 // Bidirectional :: Msg respoonse
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct Ack {
     pub id: u32,
     pub rx_id: u32,
@@ -227,11 +246,13 @@ impl defmt::Format for Ack {
 // Hub -> Server :: Init
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct InitConfig {
     pub id: u32,
     pub api_version: u32,
     pub now_version: u32,
     pub channel: u8,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub address: [u8; 6],
 }
 
@@ -264,8 +285,10 @@ impl defmt::Format for InitConfig {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub struct RemovePeer {
     pub id: u32,
+    #[cfg_attr(feature = "js", qjs(skip_trace))]
     pub address: [u8; 6],
 }
 
@@ -292,6 +315,7 @@ impl defmt::Format for RemovePeer {
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq, Eq, Debug)]
+#[cfg_attr(feature = "js", derive(Trace, JsLifetime), rquickjs::class())]
 pub enum Msg {
     Init(InitConfig),
     HubConfig(HubConfig),
@@ -433,7 +457,10 @@ mod tests {
         };
         for msg in &[
             Msg::HubConfig(config),
-            Msg::RemovePeer(PeerAddress([17_u8; 6])),
+            Msg::RemovePeer(RemovePeer {
+                id: 9999,
+                address: [17_u8; 6],
+            }),
             Msg::Broadcast(BroadcastData {
                 id: 9876,
                 data: heapless::Vec::<u8, MAX_DATA_LEN>::from_slice(b"123456789").unwrap(),
