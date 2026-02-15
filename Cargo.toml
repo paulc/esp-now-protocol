@@ -10,7 +10,11 @@ serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 anyhow = { version = "1.0.100", default-features = false }
 defmt = "1.0.1"
 rquickjs = { optional = true, version = "0.11.0", features = ["futures", "macro", "loader", "dyn-load", "rust-alloc"] }
+rquickjs_utils = { optional = true, version = "0.1.0", path = "../rquickjs_utils" }
+tokio = { optional = true, version = "1.48.0", features = ["full"] }
+argh = { optional = true, version = "0.1.13" }
 
 [features]
+default = ["js"]
 std = []
-js = ["std", "rquickjs"]
+js = ["std", "rquickjs", "rquickjs_utils", "tokio", "argh"]
