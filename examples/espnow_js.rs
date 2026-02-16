@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
         ctx.globals().set("next_id", js_next_id)?;
 
 
-        use esp_now_protocol::{format_mac::parse_mac, Msg, RxData};
+        use esp_now_protocol::{parse_mac, Msg, RxData};
         let msg = Msg::Recv(RxData {
             id: 1234,
             src_addr: parse_mac("01:02:03:04:05:06").map_err(|_| anyhow::anyhow!("Invalid MAC"))?,
