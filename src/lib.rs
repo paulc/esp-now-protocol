@@ -7,6 +7,9 @@ pub mod util;
 pub use types::*;
 pub use util::{format_mac, parse_mac};
 
+#[cfg(test)]
+mod tests;
+
 pub const VERSION: u32 = 0;
 pub const MAX_DATA_LEN: usize = 250;
 
