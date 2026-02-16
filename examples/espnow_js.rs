@@ -70,6 +70,17 @@ async fn main() -> anyhow::Result<()> {
         register_espnow(&ctx)?;
         ctx.globals().set("next_id", js_next_id)?;
 
+
+        use esp_now_protocol::{format_mac::parse_mac, Msg, RxData};
+        let msg = Msg::Recv(RxData {
+            id: 1234,
+            src_addr: parse_mac("01:02:03:04:05:06").map_err(|_| anyhow::anyhow!("Invalid MAC"))?,
+            dst_addr: parse_mac("f1:f2:f3:f4:f5:f6").map_err(|_| anyhow::anyhow!("Invalid MAC"))?,
+            data: heapless::Vec::from_slice("HELLO".as_bytes())?,
+            rssi: -5,
+        });
+        ctx.globals().set("msg",msg)?;
+
         // Run modules
         for module in args.module {
             run_module(ctx.clone(),get_script(&module)?).await?;

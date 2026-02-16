@@ -16,7 +16,7 @@ pub fn format_mac(mac: &[u8; 6]) -> heapless::String<17> {
     s
 }
 
-pub fn from_mac(s: &str) -> Result<[u8; 6], ()> {
+pub fn parse_mac(s: &str) -> Result<[u8; 6], ()> {
     if s == "<BROADCAST>" {
         return Ok([0xff, 0xff, 0xff, 0xff, 0xff, 0xff]);
     }
@@ -103,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_mac_valid() {
+    fn test_parse_mac_valid() {
         let cases = &[
             ("<BROADCAST>", [0xff; 6]),
             ("12:34:56:78:9a:bc", [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]),
@@ -114,12 +114,12 @@ mod tests {
         ];
 
         for &(input, expected) in cases {
-            assert_eq!(from_mac(input), Ok(expected), "failed to parse: {}", input);
+            assert_eq!(parse_mac(input), Ok(expected), "failed to parse: {}", input);
         }
     }
 
     #[test]
-    fn test_from_mac_invalid() {
+    fn test_parse_mac_invalid() {
         let cases = &[
             "broadcast",
             "<broadcast>",
@@ -136,7 +136,11 @@ mod tests {
         ];
 
         for &input in cases {
-            assert!(from_mac(input).is_err(), "unexpectedly accepted: {}", input);
+            assert!(
+                parse_mac(input).is_err(),
+                "unexpectedly accepted: {}",
+                input
+            );
         }
     }
 }

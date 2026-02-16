@@ -7,7 +7,7 @@ pub mod format_mac;
 mod rate;
 mod view;
 
-use format_mac::{format_mac, from_mac};
+use format_mac::{format_mac, parse_mac};
 use view::display_vec;
 
 use core::fmt::Display;
@@ -538,68 +538,43 @@ pub enum Msg {
     Ack(Ack),
 }
 
+/// Cast object as Msg class
+macro_rules! extract_class {
+    ($ctx:expr, $obj:expr, $variant:ident, $class:tt) => {
+        if let Some(c) = Class::<$class>::from_object($obj) {
+            Ok(Msg::$variant(c.borrow().clone()))
+        } else {
+            Err(Exception::throw_message(
+                $ctx,
+                format!("Expected {} instance", stringify!(ty)).as_str(),
+            ))
+        }
+    };
+}
+
 #[cfg(feature = "js")]
 #[rquickjs::methods]
 impl Msg {
-    /*
-        // Single constructor with dynamic dispatch for each Msg type
-
-        macro_rules! extract_class {
-            ($ctx:expr, $obj:expr, $variant:ident, $class:ty, $expect:literal) => {
-                if let Some(c) = Class::<$class>::from_object($obj) {
-                    Ok(Msg::$variant(c.borrow().clone()))
-                } else {
-                    Err(Exception::throw_message($ctx, $expect))
-                }
-            };
-        }
-
-        #[qjs(constructor)]
-        pub fn new(ctx: Ctx<'_>, msg_type: String, o: rquickjs::Object<'_>) -> rquickjs::Result<Self> {
-            match msg_type.as_str() {
-                "Init" => extract_class!(&ctx, &o, Init, InitConfig, "Expected InitConfig instance"),
-                "HubConfig" => extract_class!(
-                    &ctx,
-                    &o,
-                    HubConfig,
-                    HubConfig,
-                    "Expected HubConfig instance"
-                ),
-                "Send" => extract_class!(&ctx, &o, Send, TxData, "Expected TxData instance"),
-                "Recv" => extract_class!(&ctx, &o, Recv, RxData, "Expected RxData instance"),
-                "Broadcast" => extract_class!(
-                    &ctx,
-                    &o,
-                    Broadcast,
-                    BroadcastData,
-                    "Expected BroadcastData instance"
-                ),
-                "AddPeer" => extract_class!(&ctx, &o, AddPeer, PeerInfo, "Expected PeerInfo instance"),
-                "ModifyPeer" => {
-                    extract_class!(&ctx, &o, ModifyPeer, PeerInfo, "Expected PeerInfo instance")
-                }
-                "RemovePeer" => extract_class!(
-                    &ctx,
-                    &o,
-                    RemovePeer,
-                    RemovePeer,
-                    "Expected RemovePeer instance"
-                ),
-                "Ack" => extract_class!(&ctx, &o, Ack, Ack, "Expected Ack instance"),
-                _ => Err(Exception::throw_message(&ctx, "Invalid Msg type")),
-            }
-        }
-    */
-
-    // We need to have constructor to register class
+    // Single constructor with dynamic dispatch for each Msg type
+    // >>> new Msg("Init",InitConfig) etc.
     #[qjs(constructor)]
-    pub fn new(ctx: Ctx<'_>) -> rquickjs::Result<Self> {
-        Err(Exception::throw_message(
-            &ctx,
-            "Use static msg_type constructors (msg.T)",
-        ))
+    pub fn new(ctx: Ctx<'_>, msg_type: String, o: rquickjs::Object<'_>) -> rquickjs::Result<Self> {
+        match msg_type.as_str() {
+            "Init" => extract_class!(&ctx, &o, Init, InitConfig),
+            "HubConfig" => extract_class!(&ctx, &o, HubConfig, HubConfig),
+            "Send" => extract_class!(&ctx, &o, Send, TxData),
+            "Recv" => extract_class!(&ctx, &o, Recv, RxData),
+            "Broadcast" => extract_class!(&ctx, &o, Broadcast, BroadcastData),
+            "AddPeer" => extract_class!(&ctx, &o, AddPeer, PeerInfo),
+            "ModifyPeer" => extract_class!(&ctx, &o, ModifyPeer, PeerInfo),
+            "RemovePeer" => extract_class!(&ctx, &o, RemovePeer, RemovePeer),
+            "Ack" => extract_class!(&ctx, &o, Ack, Ack),
+            _ => Err(Exception::throw_message(&ctx, "Invalid Msg type")),
+        }
     }
 
+    // Type safe constructors
+    // >>> new Msg.Init(InitConfig) etc.
     #[qjs(static, rename = "Init")]
     pub fn new_init(ic: InitConfig) -> Self {
         Msg::Init(ic)
@@ -660,6 +635,12 @@ impl Msg {
         }
         .to_string()
     }
+
+    #[qjs(get, rename = "id")]
+    pub fn get_id_js(&self) -> u32 {
+        self.get_id()
+    }
+
     #[qjs(get, rename = "message")]
     pub fn get_message<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {
         Ok(match &self {
@@ -674,6 +655,7 @@ impl Msg {
             Msg::Ack(m) => Class::instance(ctx, m.clone())?.into_value(),
         })
     }
+
     pub fn debug(&self) -> String {
         format!("Msg: {:?}", self)
     }
@@ -740,8 +722,8 @@ fn buf_to_array<const N: usize>(
 
 #[cfg(feature = "js")]
 #[rquickjs::function]
-pub fn parse_mac<'js>(ctx: Ctx<'js>, mac: String) -> rquickjs::Result<ArrayBuffer<'js>> {
-    let mac = from_mac(mac.as_str()).map_err(|_| Exception::throw_message(&ctx, "Invalid MAC"))?;
+pub fn parse_mac_js<'js>(ctx: Ctx<'js>, mac: String) -> rquickjs::Result<ArrayBuffer<'js>> {
+    let mac = parse_mac(mac.as_str()).map_err(|_| Exception::throw_message(&ctx, "Invalid MAC"))?;
     Ok(ArrayBuffer::new_copy(ctx, mac)?)
 }
 
@@ -766,7 +748,7 @@ pub fn register_espnow(ctx: &Ctx<'_>) -> anyhow::Result<()> {
     rquickjs::Class::<RemovePeer>::define(&espnow)?;
     rquickjs::Class::<Ack>::define(&espnow)?;
     rquickjs::Class::<Msg>::define(&espnow)?;
-    espnow.set("parse_mac", js_parse_mac)?;
+    espnow.set("parse_mac", js_parse_mac_js)?;
     espnow.set("format_mac", js_format_mac_js)?;
     ctx.globals().set("espnow", espnow)?;
     // Add parse_mac / format_mac prototype methods
