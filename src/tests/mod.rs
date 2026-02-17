@@ -41,7 +41,7 @@ mod js_test {
             let o = v.as_object().ok_or_else(|| anyhow::anyhow!("<as_object>"))?;
             // Convert into Class
             let c = Class::<T>::from_object(o).ok_or_else(|| anyhow::anyhow!("<from_object>"))?;
-            // Chack match
+            // Check match
             let eq = *c.borrow() == expected;
             Ok::<_,anyhow::Error>(eq)
         })

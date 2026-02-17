@@ -126,7 +126,7 @@ impl Msg {
         self.get_id()
     }
 
-    #[qjs(get, rename = "message")]
+    #[qjs(get, rename = "msg")]
     pub fn get_message<'js>(&self, ctx: Ctx<'js>) -> rquickjs::Result<Value<'js>> {
         Ok(match &self {
             Msg::Init(m) => Class::instance(ctx, m.clone())?.into_value(),
